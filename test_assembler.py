@@ -98,3 +98,13 @@ assert encode_j(0b1101111, rd=0, offset=4096)     == 0x0000106f   # solo offset[
 assert encode_j(0b1101111, rd=0, offset=-128)     == 0xf81ff06f
 assert encode_j(0b1101111, rd=0, offset=1048574)  == 0x7ffff06f   # máximo (+1 MiB − 2)
 assert encode_j(0b1101111, rd=0, offset=-1048576) == 0x8000006f   # mínimo (−1 MiB)
+
+for nombre in ["blink", "7seg", "buttons_leds"]:
+    labels, instrs = first_pass(read_source(f"sw/{nombre}.s"))
+    words = second_pass(instrs, labels)
+    esperado = [int(l, 16) for l in open(f"sw/{nombre}.hex") if l.strip()]
+    for i, (w, e) in enumerate(zip(words, esperado)):
+        if w != e:
+            print(f"{nombre} instrucción {i} (PC {4*i:#x}): obtuve {w:08x}, esperaba {e:08x}")
+    assert words == esperado, nombre
+print("Los 3 programas coinciden con GNU as ✓")

@@ -34,7 +34,53 @@ class AsmError(Exception):
 # Ejemplo de una entrada:
 #   "add": ("R", 0b0110011, 0b000, 0b0000000),
 INSTRUCTIONS = {
-    # TODO
+    # mnem:    (tipo, opcode,     funct3, funct7)
+    # --- R: rd, rs1, rs2 ---  (OPCODE_OP = 7'h33, decoder líneas 151-165)
+    "add":   ("R",  0b0110011, 0b000, 0b0000000),
+    "sub":   ("R",  0b0110011, 0b000, 0b0100000),
+    "slt":   ("R",  0b0110011, 0b010, 0b0000000),
+    "sltu":  ("R",  0b0110011, 0b011, 0b0000000),
+    "xor":   ("R",  0b0110011, 0b100, 0b0000000),
+    "or":    ("R",  0b0110011, 0b110, 0b0000000),
+    "and":   ("R",  0b0110011, 0b111, 0b0000000),
+
+    # --- I aritméticas: rd, rs1, imm ---  (OPCODE_OPIMM = 7'h13, líneas 133-148)
+    "addi":  ("I",  0b0010011, 0b000, None),
+    "slti":  ("I",  0b0010011, 0b010, None),
+    "sltiu": ("I",  0b0010011, 0b011, None),
+    "xori":  ("I",  0b0010011, 0b100, None),
+    "ori":   ("I",  0b0010011, 0b110, None),
+    "andi":  ("I",  0b0010011, 0b111, None),
+
+    # --- I loads (y jalr): rd, imm(rs1) ---  (OPCODE_LOAD = 7'h03, líneas 168-184)
+    "lb":    ("IL", 0b0000011, 0b000, None),
+    "lh":    ("IL", 0b0000011, 0b001, None),
+    "lw":    ("IL", 0b0000011, 0b010, None),
+    "lbu":   ("IL", 0b0000011, 0b100, None),
+    "lhu":   ("IL", 0b0000011, 0b101, None),
+    "jalr":  ("IL", 0b1100111, 0b000, None),   # OPCODE_JALR = 7'h67, líneas 225-231
+
+    # --- S: rs2, imm(rs1) ---  (OPCODE_STORE = 7'h23, líneas 187-199)
+    "sb":    ("S",  0b0100011, 0b000, None),
+    "sh":    ("S",  0b0100011, 0b001, None),
+    "sw":    ("S",  0b0100011, 0b010, None),
+
+    # --- B: rs1, rs2, etiqueta ---  (OPCODE_BRANCH = 7'h63, líneas 202-215)
+    "beq":   ("B",  0b1100011, 0b000, None),
+    "bne":   ("B",  0b1100011, 0b001, None),
+    "blt":   ("B",  0b1100011, 0b100, None),
+    "bge":   ("B",  0b1100011, 0b101, None),
+    "bltu":  ("B",  0b1100011, 0b110, None),
+    "bgeu":  ("B",  0b1100011, 0b111, None),
+
+    # --- U: rd, imm ---  (OPCODE_LUI = 7'h37, OPCODE_AUIPC = 7'h17)
+    "lui":   ("U",  0b0110111, None, None),
+    "auipc": ("U",  0b0010111, None, None),
+
+    # --- J: rd, etiqueta ---  (OPCODE_JAL = 7'h6f, líneas 218-223)
+    "jal":   ("J",  0b1101111, None, None),
+
+    # Shifts (sll, srl, sra, slli, srli, srai) NO se incluyen
 }
 
 # Directivas que se aceptan pero se ignoran
@@ -190,12 +236,112 @@ def encode_u(opcode, rd, imm):
 def encode_j(opcode, rd, offset):
     return (((offset >> 20) & 0x1) << 31 | ((offset >> 1)& 0x3FF) << 21 | ((offset >> 11) & 0x1) << 20 | ((offset >> 12) & 0xFF) << 12 | rd << 7 |opcode)
 
+def expand_pseudo(mnem: str, ops: list, line_no: int) -> tuple[str, list]:
+    """Traduce pseudo-instrucciones a instrucciones reales.
+    Si mnem no es una pseudo-instrucción, la devuelve sin cambios.
+    Todas las de aquí se expanden a UNA instrucción (4 bytes), así que
+    first_pass no necesita saber de ellas para calcular los PC.
+    """
+    if mnem == "j":                      # j etiqueta      →  jal x0, etiqueta
+        if len(ops) != 1:
+            raise AsmError(line_no, f"'j' espera 1 operando (etiqueta), recibió {len(ops)}")
+        return "jal", ["x0", ops[0]]
+
+    if mnem == "nop":                    # nop             →  addi x0, x0, 0
+        if len(ops) != 0:
+            raise AsmError(line_no, f"'nop' no lleva operandos, recibió {len(ops)}")
+        return "addi", ["x0", "x0", "0"]
+
+    if mnem == "mv":                     # mv rd, rs       →  addi rd, rs, 0
+        if len(ops) != 2:
+            raise AsmError(line_no, f"'mv' espera 2 operandos, recibió {len(ops)}")
+        return "addi", [ops[0], ops[1], "0"]
+
+    return mnem, ops
+
+def resolve_target(operand: str, pc: int, labels: dict, line_no: int) -> int:
+    """Devuelve la dirección de una etiqueta. Lanza AsmError si no existe."""
+    if operand not in labels:
+        raise AsmError(line_no, f"Etiqueta '{operand}' no definida")
+    return labels[operand] - pc
 
 def second_pass(instructions, labels):
     """Devuelve una lista de enteros de 32 bits, uno por instrucción."""
     words = []
-    # TODO: para cada instrucción, mirar su formato en INSTRUCTIONS,
-    #       parsear operandos y llamar al encode_* que corresponda.
+
+    for (line_no, pc, mnem, ops) in instructions:
+        mnem, ops = expand_pseudo(mnem, ops, line_no)
+
+        if mnem not in INSTRUCTIONS:
+            raise AsmError(line_no, f"Instruccion desconocida: '{mnem}'")
+
+        association, opcode, f3, f7 = INSTRUCTIONS[mnem]
+
+        n_ops = len(ops)
+        word: int
+        match association:
+            case "R":
+                if n_ops != 3:
+                    raise AsmError(line_no, f"{mnem} espera 3 operandos, recibio {n_ops}")
+                rd = parse_register(ops[0], line_no)
+                rs1 = parse_register(ops[1], line_no)
+                rs2 = parse_register(ops[2], line_no)
+                word = encode_r(opcode, f3, f7, rd, rs1, rs2)
+
+            case "I":
+                if n_ops != 3:
+                    raise AsmError(line_no, f"{mnem} espera 3 operandos, recibio {n_ops}")
+                rd = parse_register(ops[0], line_no)
+                rs1 = parse_register(ops[1], line_no)
+                imm = parse_immediate(ops[2], line_no, {})
+                check_range(imm, 12, True, line_no)
+                word = encode_i(opcode, f3, rd, rs1, imm)
+
+            case "IL":
+                if n_ops != 2:
+                    raise AsmError(line_no, f"{mnem} espera 2 operandos, recibio {n_ops}")
+                rd = parse_register(ops[0], line_no)
+                imm, rs1 = parse_mem_operand(ops[1], line_no, {})
+                check_range(imm, 12, True, line_no)
+                word = encode_i(opcode, f3, rd, rs1, imm)
+
+            case "S":
+                if n_ops != 2:
+                    raise AsmError(line_no, f"{mnem} espera 2 operandos, recibio {n_ops}")
+                rs2 = parse_register(ops[0], line_no)
+                imm, rs1 = parse_mem_operand(ops[1], line_no, {})
+                check_range(imm, 12, True, line_no)
+                word = encode_s(opcode, f3, rs1, rs2, imm)
+
+            case "B":
+                if n_ops != 3:
+                    raise AsmError(line_no, f"{mnem} espera 3 operandos, recibio {n_ops}")
+                rs1 = parse_register(ops[0], line_no)
+                rs2 = parse_register(ops[1], line_no)
+                offset = resolve_target(ops[2], pc, labels, line_no)
+                check_range(offset, 13, True, line_no)
+                word = encode_b(opcode, f3, rs1, rs2, offset)
+
+            case "U":
+                if n_ops != 2:
+                    raise AsmError(line_no, f"{mnem} espera 2 operandos, recibio {n_ops}")
+                rd = parse_register(ops[0], line_no)
+                imm = parse_immediate(ops[1], line_no, {})
+                check_range(imm, 20, False, line_no)
+                word = encode_u(opcode, rd, imm)
+
+            case "J":
+                if n_ops != 2:
+                    raise AsmError(line_no, f"{mnem} espera 2 operandos, recibio {n_ops}")
+                rd = parse_register(ops[0], line_no)
+                offset = resolve_target(ops[1], pc, labels, line_no)
+                check_range(offset, 21, True, line_no)
+                word = encode_j(opcode, rd, offset)
+                
+            case _:
+                raise AsmError(line_no, f"Tipo de instrucción desconocido: '{association}'")
+
+        words.append(word)
     return words
 
 
