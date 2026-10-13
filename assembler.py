@@ -173,28 +173,22 @@ def first_pass(lines):
 # ---------------------------------------------------------------------------
 
 def encode_r(opcode, f3, f7, rd, rs1, rs2):
-    # TODO
-    pass
+    return (f7 << 25 | rs2 << 20 | rs1 << 15 | f3 << 12 | rd << 7 | opcode)
 
 def encode_i(opcode, f3, rd, rs1, imm):
-    # TODO
-    pass
+    return ((imm & 0xFFF) << 20 | rs1 << 15 | f3 << 12 | rd << 7 | opcode) 
 
 def encode_s(opcode, f3, rs1, rs2, imm):
-    # TODO
-    pass
+    return (((imm >> 5) & 0x7F) << 25 | rs2 << 20 | rs1 << 15 | f3 << 12 | (imm & 0x1F) << 7 | opcode)
 
 def encode_b(opcode, f3, rs1, rs2, offset):
-    # TODO  (el formato con los bits "desordenados")
-    pass
+    return (((offset >> 12) & 0x1) << 31 | ((offset >> 5) & 0x3F) << 25 | rs2 << 20 | rs1 << 15 | f3 << 12 | ((offset >> 1) & 0xF) << 8 | ((offset >> 11) & 0x1) << 7 | opcode)
 
 def encode_u(opcode, rd, imm):
-    # TODO
-    pass
+    return ((imm & 0xFFFFF) << 12 | rd << 7 | opcode)
 
 def encode_j(opcode, rd, offset):
-    # TODO  (también desordenado)
-    pass
+    return (((offset >> 20) & 0x1) << 31 | ((offset >> 1)& 0x3FF) << 21 | ((offset >> 11) & 0x1) << 20 | ((offset >> 12) & 0xFF) << 12 | rd << 7 |opcode)
 
 
 def second_pass(instructions, labels):
