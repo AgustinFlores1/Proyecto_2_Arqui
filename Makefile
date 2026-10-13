@@ -26,7 +26,7 @@ BIN  := $(TOP).bin
 all: prog
 
 # Step 1: Synthesis using Yosys
-$(JSON): $(SRC)
+$(JSON): $(SRC) sw/game.hex
 	yosys -p "read_verilog $(SRC); synth_ice40 -top $(TOP) -json ${TOP}.json; stat"
 
 # Step 2: Place and Route using NextPNR

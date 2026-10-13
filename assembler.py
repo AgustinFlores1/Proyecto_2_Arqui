@@ -370,7 +370,6 @@ def main():
     try:
         lines = read_source(args.input)
         labels, instructions = first_pass(lines)
-        print("Etiquetas:", {k: hex(v) for k, v in labels.items()})   # debug, quítalo después
         words = second_pass(instructions, labels)
     except AsmError as e:
         print(f"error: {e}", file=sys.stderr)
