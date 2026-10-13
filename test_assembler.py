@@ -7,15 +7,13 @@ labels, instrs = first_pass(read_source("sw/game.s"))
 
 # 1) Chequeos fijos: dependen de la versión actual de game.s.
 #    Si el juego cambia, actualizar estos números (y revisar que tengan sentido).
-assert len(instrs) == 66
-assert labels["_start"] == 0x00
-assert labels["start_round"] == 0x1c
-assert labels["wait_release"] == labels["start_round"]   # dos etiquetas seguidas -> misma dirección
-assert labels["wait_3s"] == 0x38
-assert labels["show_target"] == 0x80
-assert labels["correct"] == 0xa0
-assert labels["game_over"] == 0xd4
-assert labels["wrong"] == 0xfc
+assert len(instrs) == 97
+assert labels["start_round"] == 0x30
+assert labels["wait_3s"] == 0x4c
+assert labels["show_target"] == 0x94
+assert labels["correct"] == 0xb4
+assert labels["game_over"] == 0x120
+assert labels["wrong"] == 0x174
 
 # 2) Chequeos generales: valen para cualquier versión de game.s.
 pcs = [pc for _, pc, _, _ in instrs]

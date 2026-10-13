@@ -31,7 +31,7 @@ $(JSON): $(SRC) sw/game.hex
 
 # Step 2: Place and Route using NextPNR
 $(ASC): $(JSON) $(PCF)
-	nextpnr-ice40 --hx1k --package vq100 --json $(JSON) --pcf $(PCF) --asc $(ASC)
+	nextpnr-ice40 --hx1k --package vq100 --freq 25 --json $(JSON) --pcf $(PCF) --asc $(ASC)
 
 # Step 3: Bitstream Generation
 $(BIN): $(ASC)
@@ -43,4 +43,4 @@ prog: $(BIN)
 
 # Clean up generated files
 clean:
-	rm -f $(JSON) $(ASC) $(BIN)
+	rm -f $(JSON) $(ASC) $(BIN) sw/game.hex

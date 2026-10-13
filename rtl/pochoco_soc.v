@@ -20,24 +20,30 @@ module pochoco_soc #(
   output wire       o_Segment1_A, o_Segment1_B, o_Segment1_C, o_Segment1_D,
   output wire       o_Segment1_E, o_Segment1_F, o_Segment1_G,
   output wire       o_Segment2_A, o_Segment2_B, o_Segment2_C, o_Segment2_D,
-  output wire       o_Segment2_E, o_Segment2_F, o_Segment2_G,
+  output wire       o_Segment2_E, o_Segment2_F, o_Segment2_G/*,
 
   input  wire       i_SPI_SCLK,
   input  wire       i_SPI_MOSI,
   input  wire       i_SPI_CS_n,
-  output wire       o_SPI_MISO
+  output wire       o_SPI_MISO*/
 );
 
   wire clk;
   assign clk = i_Clk;
 
   // Power-on reset
-  reg  [3:0] por_cnt = 4'b0;
+  // Se mantiene el core en reset por 2^16 ciclos (~2,6 ms a 25 MHz).
+  // Las BRAM del iCE40 no son confiables durante los primeros microsegundos
+  // después de la configuración; con solo 15 ciclos (0,6 us) el core podía
+  // leer instrucciones basura y no arrancar.
+  reg [15:0] por_cnt = 16'd0;
+  reg        rst_q   = 1'b0;
   wire       rst_ni;
   always @(posedge clk) begin
-    if (por_cnt != 4'hF) por_cnt <= por_cnt + 4'd1;
+    if (por_cnt != 16'hFFFF) por_cnt <= por_cnt + 16'd1;
+    rst_q <= (por_cnt == 16'hFFFF);
   end
-  assign rst_ni = (por_cnt == 4'hF);
+  assign rst_ni = rst_q;
 
   // Core-memory wiring
   wire        instr_req;
@@ -61,30 +67,30 @@ module pochoco_soc #(
     .data_rdata_i  (data_rdata)
   );
 
-  wire is_mmio, spi_sel, per_sel;
+  wire is_mmio, /*spi_sel,*/ per_sel;
   assign is_mmio = data_addr[31];
   assign per_sel = is_mmio & ~data_addr[16];
-  assign spi_sel = is_mmio &  data_addr[16];
+  //assign spi_sel = is_mmio &  data_addr[16];
 
-  wire ram_b_req, per_req, spi_req;
+  wire ram_b_req, per_req/*, spi_req*/;
   assign ram_b_req = data_req & ~is_mmio;
   assign per_req   = data_req &  per_sel;
-  assign spi_req   = data_req &  spi_sel;
+  //assign spi_req   = data_req &  spi_sel;
 
-  wire [31:0] ram_b_rdata, per_rdata, spi_rdata;
+  wire [31:0] ram_b_rdata, per_rdata/*, spi_rdata*/;
 
-  reg rd_is_per, rd_is_spi;
+  reg rd_is_per/*, rd_is_spi*/;
   always @(posedge clk or negedge rst_ni) begin
     if (!rst_ni) begin
       rd_is_per <= 1'b0;
-      rd_is_spi <= 1'b0;
+      //rd_is_spi <= 1'b0;
     end else if (data_req & ~data_we) begin
       rd_is_per <= per_sel;
-      rd_is_spi <= spi_sel;
+      //rd_is_spi <= spi_sel;
     end
   end
   assign data_rdata = rd_is_per ? per_rdata :
-                      rd_is_spi ? spi_rdata : ram_b_rdata;
+                      /*rd_is_spi ? spi_rdata :*/ ram_b_rdata;
 
   pochoco_ram #(.NumWords(NumWords), .MemFile(MemFile)) u_ram (
     .clk_i     (clk),
@@ -118,7 +124,7 @@ module pochoco_soc #(
   );
 
   // SPI Slave
-  pochoco_spi_slave u_spi (
+  /*pochoco_spi_slave u_spi (
     .clk_i      (clk),
     .rst_ni     (rst_ni),
     .sel_i      (spi_sel),
@@ -131,7 +137,7 @@ module pochoco_soc #(
     .spi_mosi_i (i_SPI_MOSI),
     .spi_cs_n_i (i_SPI_CS_n),
     .spi_miso_o (o_SPI_MISO)
-  );
+  );*/
 
   // 7-seg is active-low on the board
   assign {o_Segment1_G, o_Segment1_F, o_Segment1_E, o_Segment1_D,
