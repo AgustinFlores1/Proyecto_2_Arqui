@@ -14,9 +14,15 @@ Uso (desde la raíz del repo):
     python3 test_game.py
 """
 
-from assembler import first_pass, second_pass, read_source, expand_pseudo, INSTRUCTIONS
+import sys
+from pathlib import Path
 
-GAME = "sw/game.s"
+ROOT = Path(__file__).resolve().parent.parent   # la carpeta del repo
+sys.path.insert(0, str(ROOT))                   # para que Python encuentre assembler.py
+
+from assembler import *
+
+GAME = "../sw/game.s"
 
 
 # ---------------------------------------------------------------------------

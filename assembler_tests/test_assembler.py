@@ -1,9 +1,15 @@
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent   # la carpeta del repo
+sys.path.insert(0, str(ROOT))                   # para que Python encuentre assembler.py
+
 from assembler import *
 
 # ---------------------------------------------------------------------------
 # first_pass sobre game.s
 # ---------------------------------------------------------------------------
-labels, instrs = first_pass(read_source("sw/game.s"))
+labels, instrs = first_pass(read_source("../sw/game.s"))
 
 # 1) Chequeos fijos: dependen de la versión actual de game.s.
 #    Si el juego cambia, actualizar estos números (y revisar que tengan sentido).
@@ -98,9 +104,9 @@ assert encode_j(0b1101111, rd=0, offset=1048574)  == 0x7ffff06f   # máximo (+1 
 assert encode_j(0b1101111, rd=0, offset=-1048576) == 0x8000006f   # mínimo (−1 MiB)
 
 for nombre in ["blink", "7seg", "buttons_leds"]:
-    labels, instrs = first_pass(read_source(f"sw/{nombre}.s"))
+    labels, instrs = first_pass(read_source(f"../sw/{nombre}.s"))
     words = second_pass(instrs, labels)
-    esperado = [int(l, 16) for l in open(f"sw/{nombre}.hex") if l.strip()]
+    esperado = [int(l, 16) for l in open(f"../sw/{nombre}.hex") if l.strip()]
     for i, (w, e) in enumerate(zip(words, esperado)):
         if w != e:
             print(f"{nombre} instrucción {i} (PC {4*i:#x}): obtuve {w:08x}, esperaba {e:08x}")
