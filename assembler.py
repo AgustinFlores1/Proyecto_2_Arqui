@@ -7,8 +7,6 @@ Uso:
 
 Salida: una palabra de 32 bits en hexadecimal (8 dígitos, minúscula) por línea,
 compatible con $readmemh en pochoco_ram.v.
-
-Solo usa la librería estándar de Python (no se necesita pip install).
 """
 
 import argparse   # leer argumentos de la línea de comandos (archivo de entrada, -o salida)
@@ -20,6 +18,7 @@ import sys        # sys.exit() con código de error si el .s tiene errores
 # Errores
 # ---------------------------------------------------------------------------
 
+# Crear excepcion propia para manejar errores y reportarlos con numero de linea
 class AsmError(Exception):
     """Error de ensamblado con número de línea, para mensajes claros."""
     def __init__(self, line_no, msg):
@@ -27,14 +26,13 @@ class AsmError(Exception):
 
 
 # ---------------------------------------------------------------------------
-# Tablas (las rellenas tú)
+# Tablas
 # ---------------------------------------------------------------------------
 
-# mnemónico -> (formato, opcode, funct3, funct7)
-# Ejemplo de una entrada:
-#   "add": ("R", 0b0110011, 0b000, 0b0000000),
+# Intrucciones conocidas por el assembler y su codificación (opcode, funct3, funct7)
+# La valores para cada instrucción se puede ver en el decoder del core (rtl/espino_core/espino_decoder.v)
 INSTRUCTIONS = {
-    # mnem:    (tipo, opcode,     funct3, funct7)
+    # mnem:    (formato, opcode, funct3, funct7)
     # --- R: rd, rs1, rs2 ---  (OPCODE_OP = 7'h33, decoder líneas 151-165)
     "add":   ("R",  0b0110011, 0b000, 0b0000000),
     "sub":   ("R",  0b0110011, 0b000, 0b0100000),
@@ -91,12 +89,11 @@ IGNORED_DIRECTIVES = {".section", ".text", ".global", ".globl"}
 # Lectura del archivo
 # ---------------------------------------------------------------------------
 
-def read_source(path):
-    """Devuelve una lista de (numero_de_linea, texto) con las líneas del .s.
+# Lee el archivo .s fuente y devuelve una lista con la linea y su numero correspondiente
+def read_source(path: str) -> list[tuple[int, str]]:
+    """Devuelve una lista de (numero_de_linea, texto) con las líneas del .s. fuente
 
-    Guardamos el número de línea original para poder reportar errores
-    ("línea 42: registro x16 no existe en RV32E").
-    """
+    Guarda el número de línea original para poder reportar errores"""
     with open(path, "r", encoding="utf-8") as f:
         return [(i, line) for i, line in enumerate(f, start=1)]
 
@@ -105,25 +102,32 @@ def read_source(path):
 # Helpers (los implementas tú)
 # ---------------------------------------------------------------------------
 
+# Limpia cada linea de compentarios y espacios
 def clean_line(text: str) -> str:
-    """Quita comentarios (#) y espacios. Devuelve '' si no queda nada."""
+    """Quita comentarios (#) y espacios. Devuelve "" si no queda nada."""
     return text.split('#')[0].strip()
 
-
+# Devuelve el numero asociado a un registro x0 -> 0
 def parse_register(tok: str, line_no: int) -> int:
-    """'x5' -> 5. Error si no es x0..x15 (RV32E)."""
+    """Recibe un registro que empieza con 'x' (x0...x15) y devuelve el número de registro (0..15). 
+    
+    Lanza AsmError si no es válido."""
     tok = tok.strip()
     if not (tok.startswith("x") and tok[1:].isdigit()):
         raise AsmError(line_no, f"No se entrego un registro de forma 'x<numero>', Entregado: '{tok}'")
     num = int(tok[1:])
-    if (num < 0 or num > 15):
+    if (num < 0 or num > 15):   # Revisa que este dentro del rango de registros de RV32E (x0..x15)
         raise AsmError(line_no, f"Se intento acceder a un registro fuera de rango (0...15), Entregado: '{tok}'")
     return num
 
-
+# Devuelve el valor entero de un inmediato en decimal, hexadecimal o binario
 def parse_immediate(tok: str, line_no: int, symbols: dict) -> int:
-    """'12', '-4', '0x80000' -> int. (Opcional: nombres definidos con .equ)."""
-    # Pista: int(tok, 0) entiende decimal, 0x.. y 0b.. automáticamente.
+    """Recibe un inmediato en decimal, hexadecimal (0x..) o binario (0b..) y devuelve su valor entero.
+    
+    Si 'tok' es una etiqueta, devuelve su valor desde symbols (que viene de first_pass).
+    
+    Lanza AsmError si no es válido. """
+
     tok = tok.strip()
     if tok in symbols.keys():
         return symbols[tok]
@@ -134,11 +138,13 @@ def parse_immediate(tok: str, line_no: int, symbols: dict) -> int:
 
     return num
 
-
+# Devuelve el offset y el regiostro de un operando de memoria
 def parse_mem_operand(tok: str, line_no: int, symbols: dict) -> tuple[int, int]:
-    """'8(x6)' -> (8, 6). Pista: re.fullmatch(r"(.+)\\((.+)\\)", tok)"""
+    """Recibe un operando de memoria de la forma 'offset(register)' y devuelve una tupla (offset, register).
+    
+    Lanza AsmError si no es válido. """
     tok = tok.strip()
-    mtch = re.fullmatch(r"(.+)\((.+)\)", tok)
+    mtch = re.fullmatch(r"(.+)\((.+)\)", tok) # Genera grupos de offset y register a partir del texto, por ejemplo "8(x6)" -> ("8", "x6")
 
     if mtch is None:
         raise AsmError(line_no, f"Se esperaba una direccion valida <offset>(<register>), Entregado: '{tok}'")
@@ -147,15 +153,17 @@ def parse_mem_operand(tok: str, line_no: int, symbols: dict) -> tuple[int, int]:
     
     return (parse_immediate(offset, line_no, symbols), parse_register(register, line_no))
 
-
+# Revisa si un valor cabe en un número de bits dado, con o sin signo.
 def check_range(value: int, n_bits: int, signed: bool, line_no: int) -> None:
-    """Lanza AsmError si value no cabe en 'bits' bits."""
+    """Revisa si un valor cabe en un número de bits dado, con o sin signo.
+    
+    Lanza AsmError si value no cabe en 'bits' bits."""
     if (signed):
-        limit: int = 2**(n_bits - 1)
+        limit = 2**(n_bits - 1)
         if (value > limit - 1 or value < -limit):
             raise AsmError(line_no, f"Valor fuera del rango del numero de bits permitidos ({-limit}, {limit - 1}), Entregado: {value}")
     else:
-        limit: int = 2**n_bits - 1
+        limit = 2**n_bits - 1
         if (value > limit or value < 0):
             raise AsmError(line_no, f"Valor fuera del rango del numero de bits permitidos (0, {limit}), Entregado: {value}")
 
@@ -164,45 +172,48 @@ def check_range(value: int, n_bits: int, signed: bool, line_no: int) -> None:
 # Pasada 1: etiquetas
 # ---------------------------------------------------------------------------
 
-def first_pass(lines):
+# Primera pasada del codigo fuente: devuelve un diccionario de etiquetas y una lista de instrucciones
+def first_pass(lines: list[tuple[int, str]]) -> tuple[dict[str, int], list[tuple[int, int, str, list[str]]]]:
     """Recorre el código y devuelve:
          labels:       {'loop': 0x0C, ...}
          instructions: [(line_no, pc, mnemonic, [operandos]), ...]
     """
-    labels = {}
-    instructions = []
-    pc = 0
+    labels: dict[str, int] = {}
+    instructions: list[tuple[int, int, str, list[str]]] = []
+    pc: int = 0
 
     for line_no, line in lines:
         cline = clean_line(line)
-        if cline == "":
+        if cline == "":                 # Si la linea queda vacia, no hay nada que hacer
             continue
-        if ":" in cline:
+
+        if ":" in cline:                # Si hay ":", significa que hay una etiqueta.
             items = cline.split(":", 1)
             label = items[0].strip()
             if (label == ""):
                 raise AsmError(line_no, "Se entrego una etiqueta vacia")
+            
             elif (label in labels.keys()):
                 raise AsmError(line_no, f"Etiqueta '{label}' ya definida")
             
-            labels[label] = pc
-            cline = items[1].strip()
+            labels[label] = pc         # La etiqueta apunta a la dirección actual del PC
+            cline = items[1].strip()   # Se obtiene la linea despues de la etiqueta, que puede ser una instrucción o estar vacía
             if cline == "":
                 continue
 
-        if cline.startswith("."):
+        if cline.startswith("."):                       # Si la linea empieza con ".", es una directiva. Se ignoran las que están en IGNORED_DIRECTIVES
             directive = cline.split(None, 1)[0]
             if directive.strip() in IGNORED_DIRECTIVES:
                 continue
             else:
                 raise AsmError(line_no, f"Se utiliza directiva no reconocida por el assembler: '{directive}'") 
 
-        parts = cline.split(None, 1)
+        parts = cline.split(None, 1) # Se separa instruccion de sus operandos. Por ejemplo "add x1, x2, x3" -> ["add", "x1, x2, x3"]
         if len(parts) == 1:
             operators = []
         else:
             operators = [op.strip() for op in parts[1].split(",")]
-        mnemonic = parts[0].strip().lower()
+        mnemonic = parts[0].strip().lower()                         # Las instrucciones no distinguen entre mayúsculas y minúsculas
         instructions.append((
             line_no,
             pc,
@@ -218,12 +229,15 @@ def first_pass(lines):
 # Pasada 2: codificación
 # ---------------------------------------------------------------------------
 
+# Codifica una instrucción en un entero de 32 bits según su formato (R, I, S, B, U, J)
+# Se generan mascaras para los inmediatos para considerar solo sus bits efectivos, y se desplazan los campos a su posición correcta según el formato de la instrucción.
 def encode_r(opcode, f3, f7, rd, rs1, rs2):
     return (f7 << 25 | rs2 << 20 | rs1 << 15 | f3 << 12 | rd << 7 | opcode)
 
 def encode_i(opcode, f3, rd, rs1, imm):
-    return ((imm & 0xFFF) << 20 | rs1 << 15 | f3 << 12 | rd << 7 | opcode) 
+    return ((imm & 0xFFF) << 20 | rs1 << 15 | f3 << 12 | rd << 7 | opcode)
 
+# Para instrucciones cuyos bits no se ocupan continuamente, se desplazan primero los bits a su posición correcta y luego se combinan con sus mascaras y OR.
 def encode_s(opcode, f3, rs1, rs2, imm):
     return (((imm >> 5) & 0x7F) << 25 | rs2 << 20 | rs1 << 15 | f3 << 12 | (imm & 0x1F) << 7 | opcode)
 
@@ -236,11 +250,11 @@ def encode_u(opcode, rd, imm):
 def encode_j(opcode, rd, offset):
     return (((offset >> 20) & 0x1) << 31 | ((offset >> 1)& 0x3FF) << 21 | ((offset >> 11) & 0x1) << 20 | ((offset >> 12) & 0xFF) << 12 | rd << 7 |opcode)
 
+
+# Traduce pseudo-instrucciones a instrucciones reales.
 def expand_pseudo(mnem: str, ops: list, line_no: int) -> tuple[str, list]:
     """Traduce pseudo-instrucciones a instrucciones reales.
     Si mnem no es una pseudo-instrucción, la devuelve sin cambios.
-    Todas las de aquí se expanden a UNA instrucción (4 bytes), así que
-    first_pass no necesita saber de ellas para calcular los PC.
     """
     if mnem == "j":                      # j etiqueta      →  jal x0, etiqueta
         if len(ops) != 1:
@@ -259,26 +273,31 @@ def expand_pseudo(mnem: str, ops: list, line_no: int) -> tuple[str, list]:
 
     return mnem, ops
 
-def resolve_target(operand: str, pc: int, labels: dict, line_no: int) -> int:
-    """Devuelve la dirección de una etiqueta. Lanza AsmError si no existe."""
+# Calcula la direccion de una etiquera relativa a la instruccion actual.
+def resolve_target(operand: str, pc: int, labels: dict[str, int], line_no: int) -> int:
+    """Devuelve la dirección de una etiqueta relativa a la instrucción actual. 
+    
+    Lanza AsmError si no existe."""
     if operand not in labels:
         raise AsmError(line_no, f"Etiqueta '{operand}' no definida")
     return labels[operand] - pc
 
-def second_pass(instructions, labels):
-    """Devuelve una lista de enteros de 32 bits, uno por instrucción."""
+def second_pass(instructions: list[tuple[int, int, str, list[str]]], labels: dict[str, int]) -> list[int]:
+    """Recibe la lista de instrucciones y las etiquetas, y devuelve una lista de enteros de 32 bits, uno por instrucción.
+    
+    Lanza AsmError si hay errores de sintaxis, semántica o si se entregan valores desconocidos y/o invalidos."""
     words = []
 
     for (line_no, pc, mnem, ops) in instructions:
-        mnem, ops = expand_pseudo(mnem, ops, line_no)
+        mnem, ops = expand_pseudo(mnem, ops, line_no) # Transforma a instrucciones reales si es pseudo-instrucción
 
         if mnem not in INSTRUCTIONS:
             raise AsmError(line_no, f"Instruccion desconocida: '{mnem}'")
 
         association, opcode, f3, f7 = INSTRUCTIONS[mnem]
 
-        n_ops = len(ops)
-        word: int
+        n_ops = len(ops)    # Numero de operando que vienen con la instruccion 
+        word: int           # Se inicializa la variable que contendra la instruccion codificada en 32 bits
         match association:
             case "R":
                 if n_ops != 3:
@@ -349,6 +368,7 @@ def second_pass(instructions, labels):
 # Salida
 # ---------------------------------------------------------------------------
 
+# Escribe las instrucciones en un archivo .hex (path) como 8 digitos hexadecimales por linea
 def write_hex(words, path):
     with open(path, "w", encoding="utf-8") as f:
         for w in words:
@@ -360,24 +380,24 @@ def write_hex(words, path):
 # ---------------------------------------------------------------------------
 
 def main():
-    ap = argparse.ArgumentParser(description="Assembler RV32E para Pochoco SoC")
+    ap = argparse.ArgumentParser(description="Assembler RV32E para Pochoco SoC")  # Genera parser de argumentos de la línea de comandos
     ap.add_argument("input", help="archivo .s de entrada")
     ap.add_argument("-o", "--output", help="archivo .hex de salida (por defecto: mismo nombre .hex)")
     args = ap.parse_args()
 
-    out_path = args.output or re.sub(r"\.s$", "", args.input) + ".hex"
+    out_path = args.output or re.sub(r"\.s$", "", args.input) + ".hex"  # Obtiene el nombre del archivo de salida, si no se entrega, se reemplaza la extensión .s por .hex
 
     try:
         lines = read_source(args.input)
         labels, instructions = first_pass(lines)
         words = second_pass(instructions, labels)
-    except AsmError as e:
+    except AsmError as e:                         # Si hay un error, imprime mensaje y no escribe el archivo de salida
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
 
     write_hex(words, out_path)
-    print(f"{len(words)} instrucciones -> {out_path}")
+    print(f"{len(words)} instrucciones -> {out_path}")  # Numero de instrucciones codificadas y nombre del archivo de salida
 
 
-if __name__ == "__main__":
+if __name__ == "__main__": # Si se ejecuta directamente, se llama a main(), sino se ignora (por ejemplo si se importa desde test_game.py)
     main()

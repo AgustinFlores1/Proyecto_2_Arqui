@@ -20,13 +20,17 @@ JSON := $(TOP).json
 ASC  := $(TOP).asc
 BIN  := $(TOP).bin
 
+# Assembly Sources
+SS   := sw/game.s
+HEX  := sw/game.hex
+
 .PHONY: all prog clean stats
 
 # Default target
-all: prog
+all: asm prog
 
 # Step 1: Synthesis using Yosys
-$(JSON): $(SRC) sw/game.hex
+$(JSON): $(SRC) $(HEX)
 	yosys -p "read_verilog $(SRC); synth_ice40 -top $(TOP) -json ${TOP}.json; stat"
 
 # Step 2: Place and Route using NextPNR
@@ -41,6 +45,10 @@ $(BIN): $(ASC)
 prog: $(BIN)
 	iceprog $(BIN)
 
+# New instruction to use personal assembler.py to generate the.hex file
+asm: $(SS)
+	python3 assembler.py $(SS) -o $(HEX)
+
 # Clean up generated files
 clean:
-	rm -f $(JSON) $(ASC) $(BIN) sw/game.hex
+	rm -f $(JSON) $(ASC) $(BIN) $(HEX)

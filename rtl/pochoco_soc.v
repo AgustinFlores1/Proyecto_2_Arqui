@@ -8,6 +8,10 @@
 // Authors:
 // - Nicolás Villegas <navillegas@miuandes.cl>
 
+// ----------------------------------------------------------
+// Se comentaron los puertos y funciones del SPI Slave, ya que no se implementa en el proyecto.
+// ----------------------------------------------------------
+
 module pochoco_soc #(
   parameter NumWords   = 512,
   parameter MemFile    = "../sw/blink.hex"
@@ -32,10 +36,9 @@ module pochoco_soc #(
   assign clk = i_Clk;
 
   // Power-on reset
-  // Se mantiene el core en reset por 2^16 ciclos (~2,6 ms a 25 MHz).
-  // Las BRAM del iCE40 no son confiables durante los primeros microsegundos
-  // después de la configuración; con solo 15 ciclos (0,6 us) el core podía
-  // leer instrucciones basura y no arrancar.
+  // Se cambio el reset de 4 bits a 16 bits para que dure mas 
+  // tiempo y se pueda inicializar el programa correctamente en la FPGA
+
   reg [15:0] por_cnt = 16'd0;
   reg        rst_q   = 1'b0;
   wire       rst_ni;
