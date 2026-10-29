@@ -8,15 +8,14 @@
 // Authors:
 // - Nicolás Villegas <navillegas@miuandes.cl>
 
-// ----------------------------------------------------------
-// Se comentaron los puertos y funciones del SPI Slave, ya que no se implementa en el proyecto.
-// ----------------------------------------------------------
 
 module pochoco_soc #(
   parameter NumWords   = 512,
-  parameter MemFile    = "../sw/blink.hex"
+  parameter MemFile    = "../sw/blink.hex",
+  parameter MemMode = 0
 ) (
   input  wire       i_Clk,
+  input  wire       i_Reset_n,
 
   output wire [3:0] o_LED,
   input  wire [3:0] i_Switch,
@@ -24,29 +23,19 @@ module pochoco_soc #(
   output wire       o_Segment1_A, o_Segment1_B, o_Segment1_C, o_Segment1_D,
   output wire       o_Segment1_E, o_Segment1_F, o_Segment1_G,
   output wire       o_Segment2_A, o_Segment2_B, o_Segment2_C, o_Segment2_D,
-  output wire       o_Segment2_E, o_Segment2_F, o_Segment2_G/*,
+  output wire       o_Segment2_E, o_Segment2_F, o_Segment2_G,
 
   input  wire       i_SPI_SCLK,
   input  wire       i_SPI_MOSI,
   input  wire       i_SPI_CS_n,
-  output wire       o_SPI_MISO*/
+  output wire       o_SPI_MISO
 );
 
   wire clk;
-  assign clk = i_Clk;
+  wire rst_ni;
 
-  // Power-on reset
-  // Se cambio el reset de 4 bits a 16 bits para que dure mas 
-  // tiempo y se pueda inicializar el programa correctamente en la FPGA
-
-  reg [15:0] por_cnt = 16'd0;
-  reg        rst_q   = 1'b0;
-  wire       rst_ni;
-  always @(posedge clk) begin
-    if (por_cnt != 16'hFFFF) por_cnt <= por_cnt + 16'd1;
-    rst_q <= (por_cnt == 16'hFFFF);
-  end
-  assign rst_ni = rst_q;
+  assign clk    = i_Clk;
+  assign rst_ni = i_Reset_n;
 
   // Core-memory wiring
   wire        instr_req;
@@ -70,43 +59,95 @@ module pochoco_soc #(
     .data_rdata_i  (data_rdata)
   );
 
-  wire is_mmio, /*spi_sel,*/ per_sel;
+  wire is_mmio, spi_sel, per_sel;
   assign is_mmio = data_addr[31];
   assign per_sel = is_mmio & ~data_addr[16];
-  //assign spi_sel = is_mmio &  data_addr[16];
+  assign spi_sel = is_mmio &  data_addr[16];
 
-  wire ram_b_req, per_req/*, spi_req*/;
+  wire ram_b_req, per_req, spi_req;
+
   assign ram_b_req = data_req & ~is_mmio;
   assign per_req   = data_req &  per_sel;
-  //assign spi_req   = data_req &  spi_sel;
+  assign spi_req   = data_req &  spi_sel;
 
-  wire [31:0] ram_b_rdata, per_rdata/*, spi_rdata*/;
+  wire [31:0] ram_b_rdata, per_rdata, spi_rdata;
 
-  reg rd_is_per/*, rd_is_spi*/;
+  reg rd_is_per, rd_is_spi;
+
   always @(posedge clk or negedge rst_ni) begin
     if (!rst_ni) begin
       rd_is_per <= 1'b0;
-      //rd_is_spi <= 1'b0;
+      rd_is_spi <= 1'b0;
     end else if (data_req & ~data_we) begin
       rd_is_per <= per_sel;
-      //rd_is_spi <= spi_sel;
+      rd_is_spi <= spi_sel;
     end
   end
-  assign data_rdata = rd_is_per ? per_rdata :
-                      /*rd_is_spi ? spi_rdata :*/ ram_b_rdata;
 
-  pochoco_ram #(.NumWords(NumWords), .MemFile(MemFile)) u_ram (
-    .clk_i     (clk),
-    .a_req_i   (instr_req),
-    .a_addr_i  (instr_addr),
-    .a_rdata_o (instr_rdata),
-    .b_req_i   (ram_b_req),
-    .b_we_i    (data_we),
-    .b_be_i    (data_be),
-    .b_addr_i  (data_addr),
-    .b_wdata_i (data_wdata),
-    .b_rdata_o (ram_b_rdata)
-  );
+  assign data_rdata = rd_is_per ? per_rdata : rd_is_spi ? spi_rdata : ram_b_rdata;
+
+ generate
+
+  if (MemMode == 0) begin : gen_fpga_memory
+
+    // Original FPGA memory.
+    pochoco_ram #(.NumWords(NumWords), .MemFile(MemFile)
+    ) u_ram (
+      .clk_i     (clk),
+      .a_req_i   (instr_req),
+      .a_addr_i  (instr_addr),
+      .a_rdata_o (instr_rdata),
+
+      .b_req_i   (ram_b_req),
+      .b_we_i    (data_we),
+      .b_be_i    (data_be),
+      .b_addr_i  (data_addr),
+      .b_wdata_i (data_wdata),
+      .b_rdata_o (ram_b_rdata)
+    );
+
+  end else if (MemMode == 1) begin : gen_romram_memory
+
+    // ASIC strategy 1:
+    // combinational program ROM + minimal data RAM.
+    pochoco_mem_romram u_mem (
+      .clk_i     (clk),
+
+      .a_req_i   (instr_req),
+      .a_addr_i  (instr_addr),
+      .a_rdata_o (instr_rdata),
+
+      .b_req_i   (ram_b_req),
+      .b_we_i    (data_we),
+      .b_be_i    (data_be),
+      .b_addr_i  (data_addr),
+      .b_wdata_i (data_wdata),
+      .b_rdata_o (ram_b_rdata)
+    );
+
+  end else if (MemMode == 2) begin : gen_ff_memory
+
+    // ASIC strategy 2:
+    // unified instruction/data memory implemented with flip-flops.
+    game_mem_ff u_mem (
+        .clk_i     (clk),
+        .rst_ni    (rst_ni),
+
+        .a_req_i   (instr_req),
+        .a_addr_i  (instr_addr),
+        .a_rdata_o (instr_rdata),
+
+        .b_req_i   (ram_b_req),
+        .b_we_i    (data_we),
+        .b_be_i    (data_be),
+        .b_addr_i  (data_addr),
+        .b_wdata_i (data_wdata),
+        .b_rdata_o (ram_b_rdata)
+    );
+
+  end
+
+endgenerate
 
   // Peripherals
   wire [6:0] seg1, seg2;
@@ -127,7 +168,7 @@ module pochoco_soc #(
   );
 
   // SPI Slave
-  /*pochoco_spi_slave u_spi (
+  pochoco_spi_slave u_spi (
     .clk_i      (clk),
     .rst_ni     (rst_ni),
     .sel_i      (spi_sel),
@@ -140,12 +181,12 @@ module pochoco_soc #(
     .spi_mosi_i (i_SPI_MOSI),
     .spi_cs_n_i (i_SPI_CS_n),
     .spi_miso_o (o_SPI_MISO)
-  );*/
+  );
 
-  // 7-seg is active-low on the board
-  assign {o_Segment1_G, o_Segment1_F, o_Segment1_E, o_Segment1_D,
-          o_Segment1_C, o_Segment1_B, o_Segment1_A} = ~seg1;
-  assign {o_Segment2_G, o_Segment2_F, o_Segment2_E, o_Segment2_D,
-          o_Segment2_C, o_Segment2_B, o_Segment2_A} = ~seg2;
+  // Logical 7-segment outputs.
+  // Board-specific polarity is handled by the FPGA wrapper.
+  assign {o_Segment1_G, o_Segment1_F, o_Segment1_E, o_Segment1_D, o_Segment1_C, o_Segment1_B, o_Segment1_A} = seg1;
+
+  assign {o_Segment2_G, o_Segment2_F, o_Segment2_E, o_Segment2_D, o_Segment2_C, o_Segment2_B, o_Segment2_A} = seg2;
 
 endmodule
