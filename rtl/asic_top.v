@@ -1,4 +1,6 @@
-module asic_top (
+module asic_top #(
+    parameter MemMode = 1
+) (
     input  wire       i_Clk,
     input  wire       i_Reset_n,
 
@@ -28,7 +30,7 @@ module asic_top (
 );
 
     pochoco_soc #(
-        .MemMode(2)
+        .MemMode(MemMode)
     ) u_soc (
         .i_Clk        (i_Clk),
         .i_Reset_n    (i_Reset_n),

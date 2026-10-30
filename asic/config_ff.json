@@ -1,0 +1,27 @@
+{
+  "DESIGN_NAME": "asic_top",
+  "VERILOG_FILES": [
+    "dir::../rtl/*.v",
+    "dir::../rtl/espino_core/*.v"
+  ],
+  "CLOCK_PORT": "i_Clk",
+  "CLOCK_PERIOD": 100,
+  "FP_CORE_UTIL": 40,
+  "PDK": "gf180mcuD",
+
+  "DEFAULT_CORNER": "nom_tt_025C_5v00",
+
+  "LIB": {
+    "*_tt_025C_5v00": [
+      "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__tt_025C_5v00.lib"
+    ],
+    "*_ff_n40C_5v50": [
+      "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__ff_n40C_5v50.lib"
+    ],
+    "*_ss_125C_4v50": [
+      "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__ss_125C_4v50.lib"
+    ]
+  },
+
+  "SYNTH_PARAMETERS": ["MemMode=2"]
+}

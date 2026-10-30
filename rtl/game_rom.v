@@ -25,8 +25,8 @@ module game_rom (
 7'd14: rdata_o = 32'h00f00393;
 7'd15: rdata_o = 32'h00722023;
 7'd16: rdata_o = 32'h00032383;
-7'd17: rdata_o = 32'h047874b7;
-7'd18: rdata_o = 32'h8c048493;
+7'd17: rdata_o = 32'h01c9c4b7;
+7'd18: rdata_o = 32'h38048493;
 7'd19: rdata_o = 32'h00032503;
 7'd20: rdata_o = 32'h40750533;
 7'd21: rdata_o = 32'hfe956ce3;
@@ -54,8 +54,8 @@ module game_rom (
 7'd43: rdata_o = 32'h00c70463;
 7'd44: rdata_o = 32'h0c40006f;
 7'd45: rdata_o = 32'h00022023;
-7'd46: rdata_o = 32'h002624b7;
-7'd47: rdata_o = 32'h5a048493;
+7'd46: rdata_o = 32'h000f44b7;
+7'd47: rdata_o = 32'h24048493;
 7'd48: rdata_o = 32'h00000513;
 7'd49: rdata_o = 32'h0097e863;
 7'd50: rdata_o = 32'h409787b3;

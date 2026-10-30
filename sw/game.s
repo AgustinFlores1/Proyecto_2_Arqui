@@ -13,14 +13,13 @@
 # x6 = Reloj/Cycle counter
 # x7 = Registro temporal (buffer)
 # x8 = Acumulador global de tiempo total (en décimas)
-# x9 = Constantes grandes (para las esperas de 3s y los 2.500.000 ciclos)
+# x9 = Constantes grandes (para las esperas de 3s y los 1.000.000 ciclos)
 # x10 = Registro matemático temporal
 # x11 = Número aleatorio original
 # x12 = El LED traducido en bits
 # x13 = Tiempo exacto en el que se encendió el LED objetivo
 # x14 = Boton presionado fisicamente
 # x15 = Semilla / tiempo de reacción crudo del jugador
-
 
 
 _start:
@@ -66,9 +65,9 @@ wait_release:
     # Guarda el cycle counter inicial de la ronda
     lw x7, 0(x6)
 
-    # Cargar los 75.000.000 de ciclos (3 segundos en 25 MHz)
-    lui  x9, 0x4787
-    addi x9, x9, -1856
+    # Cargar los 30.000.000 de ciclos (3 segundos en 10 MHz)
+    lui  x9, 0x1C9C
+    addi x9, x9, 0x380
 
 
 wait_3s:
@@ -76,7 +75,7 @@ wait_3s:
     lw   x10, 0(x6)
     # x10 = contador actual - contador inicial
     sub  x10, x10, x7
-    # Si los ciclos transcurridos son < 75.000.000, vuelve a wait_3s
+    # Si los ciclos transcurridos son < 30.000.000, vuelve a wait_3s
     bltu x10, x9, wait_3s
 
     # Pseudo-random: contador actual XOR semilla / tiempo anterior
@@ -128,18 +127,18 @@ correct:
     sw x0, 0(x4) # Apaga los leds indicando el fin de la ronda
 
 
-    # Se cargan los 2.500.000 ciclos de una décima de segundo en x9 (0x002625A0 en hexadecimal)
-    lui x9, 0x262 # Toma la sección 00262 y la guarda en el registro (0x00262000)
-    addi x9, x9, 0x5A0 # Le suma el restante (5A0)
+    # Se cargan los 1.000.000 ciclos de una décima de segundo en x9
+    lui x9, 0xF4
+    addi x9, x9, 0x240
 
     addi x10, x0 , 0 # Inicializa el contador de décimas en 0
 
 resta_sucesiva:
 
-    # si los ciclos en x15 son menores a 2.500.000 (x9), se termina la división
+    # si los ciclos en x15 son menores a 1.000.000 (x9), se termina la división
     bltu x15, x9, fin_division
 
-    sub x15, x15, x9 # Restamos 2.500.000 a los ciclos totales
+    sub x15, x15, x9 # Restamos 1.000.000 a los ciclos totales
     addi x10, x10, 1 # sumamos uno al contador de décimas
     j resta_sucesiva # volvemos a realizar la resta
 

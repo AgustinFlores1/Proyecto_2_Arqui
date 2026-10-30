@@ -11,6 +11,8 @@ __pycache__/
 
 # FPGA Synthesis & Bitstream Artifacts (Yosys / nextpnr / icepack)
 *.json
+!asic/config_ff.json
+!asic/config_romram.json
 *.asc
 *.bin
 *.log
@@ -20,3 +22,8 @@ module_stats/
 sim/sim
 *.vcd
 *.csv
+
+# ASIC / simulation generated artifacts
+asic/runs/
+sim/*.out
+sw/game.hex
