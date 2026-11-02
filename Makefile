@@ -23,8 +23,10 @@ BIN  := $(TOP).bin
 # Assembly Sources
 SS   := sw/game.s
 HEX  := sw/game.hex
+ROM  := rtl/game_rom.v
+FFM  := rtl/game_mem_ff.v
 
-.PHONY: all prog clean stats
+.PHONY: all prog clean stats asm
 
 # Default target
 all: asm prog
@@ -45,10 +47,33 @@ $(BIN): $(ASC)
 prog: $(BIN)
 	iceprog $(BIN)
 
-# New instruction to use personal assembler.py to generate the.hex file
+# Assembles game.s, generating game.hex, game_rom.v (strategy 1) and game_mem_ff.v (strategy 2)
 asm: $(SS)
-	python3 assembler.py $(SS) -o $(HEX)
+	python3 assembler.py $(SS) -o $(HEX) --rom $(ROM) --ff-mem $(FFM)
 
 # Clean up generated files
 clean:
 	rm -f $(JSON) $(ASC) $(BIN) $(HEX)
+
+# =====================================================================
+#                      ASIC (LibreLane + GF180MCU)
+# =====================================================================
+# Ejecutar dentro del nix-shell, desde la raíz del repo. Ejemplos:
+#   make asic                                        estrategia 1 (romram)
+#   make asic STRAT=ff                               estrategia 2 (ff)
+#   make asic TAG=romram_T50 ARGS="-c CLOCK_PERIOD=50"
+#   make klayout TAG=romram_T50
+ 
+PDK   ?= gf180mcuD
+STRAT ?= romram
+TAG   ?= $(STRAT)_base
+ARGS  ?=
+ 
+asic: asm
+	cd asic && librelane --pdk $(PDK) $(ARGS) config_$(STRAT).json --run-tag $(TAG) --overwrite
+ 
+klayout:
+	cd asic && librelane --pdk $(PDK) --flow openinklayout config_$(STRAT).json --run-tag $(TAG)
+ 
+openroad:
+	cd asic && librelane --pdk $(PDK) --flow openinopenroad config_$(STRAT).json --run-tag $(TAG)

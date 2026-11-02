@@ -29,14 +29,16 @@ module pochoco_periph (
   // LEDs and raw digit registers
   reg [3:0]  led_q;
   reg [7:0]  digit_q;
-  reg [31:0] cycle_counter_q;
 
-  always @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni)
-      cycle_counter_q <= 32'b0;
-    else
-      cycle_counter_q <= cycle_counter_q + 32'd1;
-  end
+  // Cycle counter (Proyecto 3): movido a su propio módulo para poder
+  // identificarlo en síntesis y layout. Mismo comportamiento que antes.
+  wire [31:0] cycle_counter_q;
+
+  pochoco_cycle_counter u_cycle_counter (
+    .clk_i   (clk_i),
+    .rst_ni  (rst_ni),
+    .count_o (cycle_counter_q)
+  );
   
   always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
