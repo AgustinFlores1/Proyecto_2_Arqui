@@ -74,8 +74,22 @@ module espino_load_store_unit (
   end
 
   // Load data
-  wire [15:0] lhalf = boff[1] ? data_rdata_i[31:16] : data_rdata_i[15:0];
-  wire [7:0]  lbyte = boff[0] ? lhalf[15:8]         : lhalf[7:0];
+  // Desplazamiento de byte registrado al emitir el load (ciclo 1),
+  // para que la alineación del ciclo 2 no dependa de la ALU.
+  `ifdef LSU_REG_BOFF
+    reg [1:0] boff_q;
+    always @(posedge clk_i or negedge rst_ni) begin
+      if (!rst_ni)                 boff_q <= 2'b00;
+      else if (is_load && !busy_q) boff_q <= addr_i[1:0];
+    end
+    wire [1:0] load_boff = boff_q;
+  `else
+    wire [1:0] load_boff = boff;
+  `endif
+
+  // Load data
+    wire [15:0] lhalf = load_boff[1] ? data_rdata_i[31:16] : data_rdata_i[15:0];
+    wire [7:0]  lbyte = load_boff[0] ? lhalf[15:8]         : lhalf[7:0];
 
   always @* begin
     case (type_i)
