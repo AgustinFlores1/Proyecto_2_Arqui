@@ -1,0 +1,15 @@
+VCD info: dumpfile ondas.vcd opened for output.
+t=0 | ciclo=0 | LED=0000 | Switch=0000
+t=2350000 | ciclo=19 | LED=1001 | Switch=0000
+t=5850000 | ciclo=54 | LED=1111 | Switch=0000
+t=18350000 | ciclo=179 | LED=0001 | Switch=0000
+WRONG: ciclo=221 | medido=26 | inicio_objetivo=180
+t=22550000 | ciclo=221 | LED=0000 | Switch=0010
+REINICIO_RONDA: ciclo=233 | LED=1111
+t=23750000 | ciclo=233 | LED=1111 | Switch=0000
+t=36250000 | ciclo=358 | LED=0001 | Switch=0000
+CORRECT: ciclo=406 | medido=38 | inicio_objetivo=359
+t=41050000 | ciclo=406 | LED=0000 | Switch=0001
+t=48650000 | ciclo=482 | LED=1111 | Switch=0000
+SIMULACION RTL FINALIZADA
+sim/tb_sim.v:172: $finish called at 51500000 (1ps)

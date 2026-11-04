@@ -12,7 +12,8 @@ __pycache__/
 # FPGA Synthesis & Bitstream Artifacts (Yosys / nextpnr / icepack)
 *.json
 !asic/config_ff.json
-!asic/config_romram.json
+!asic/config_romram_lsu.json
+*.vvp
 *.asc
 *.bin
 *.log
