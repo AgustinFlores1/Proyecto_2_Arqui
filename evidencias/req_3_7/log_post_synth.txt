@@ -1,0 +1,15 @@
+VCD info: dumpfile ondas_post_synth.vcd opened for output.
+t=0 | ciclo=0 | LED=0000 | Switch=0000
+t=2350000 | ciclo=18 | LED=1001 | Switch=0000
+t=5850000 | ciclo=53 | LED=1111 | Switch=0000
+t=18350000 | ciclo=178 | LED=0001 | Switch=0000
+WRONG: ciclo=220 | medido=26 | inicio_objetivo=180
+t=22550000 | ciclo=220 | LED=0000 | Switch=0010
+REINICIO_RONDA: ciclo=232 | LED=1111
+t=23750000 | ciclo=232 | LED=1111 | Switch=0000
+t=36250000 | ciclo=357 | LED=0001 | Switch=0000
+CORRECT: ciclo=405 | medido=38 | inicio_objetivo=359
+t=41050000 | ciclo=405 | LED=0000 | Switch=0001
+t=48650000 | ciclo=481 | LED=1111 | Switch=0000
+SIMULACION POST-SINTESIS FINALIZADA
+sim/tb_post_synth.v:246: $finish called at 51500000 (1ps)
