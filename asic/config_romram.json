@@ -9,12 +9,6 @@
   "FP_CORE_UTIL": 40,
   "PDK": "gf180mcuD",
 
-  "LIB": {
-    "nom_*": [
-      "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__tt_025C_5v00.lib"
-    ]
-  },
-
   "SYNTH_PARAMETERS": ["MemMode=1"],
 
   "TIMING_VIOLATION_CORNERS": ["*"],

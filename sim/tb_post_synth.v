@@ -46,40 +46,40 @@ module tb_post_synth;
         uut.\u_soc.u_core.u_rf .\regs[15][0]
     };
 
-    wire [31:0] x13_post;
-    assign x13_post = {
-        uut.\u_soc.u_core.u_rf .\regs[13][31] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][30] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][29] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][28] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][27] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][26] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][25] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][24] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][23] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][22] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][21] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][20] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][19] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][18] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][17] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][16] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][15] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][14] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][13] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][12] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][11] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][10] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][9] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][8] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][7] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][6] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][5] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][4] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][3] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][2] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][1] ,
-        uut.\u_soc.u_core.u_rf .\regs[13][0]
+    wire [31:0] x1_post;
+    assign x1_post = {
+        uut.\u_soc.u_core.u_rf .\regs[1][31] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][30] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][29] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][28] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][27] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][26] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][25] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][24] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][23] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][22] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][21] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][20] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][19] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][18] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][17] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][16] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][15] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][14] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][13] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][12] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][11] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][10] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][9] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][8] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][7] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][6] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][5] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][4] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][3] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][2] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][1] ,
+        uut.\u_soc.u_core.u_rf .\regs[1][0]
     };
 
     wire o_Segment1_A, o_Segment1_B, o_Segment1_C, o_Segment1_D;
@@ -138,11 +138,18 @@ module tb_post_synth;
             tb_cycle <= tb_cycle + 1;
     end
 
+    wire [7:0] display_post = {
+       uut.\u_soc.u_periph.digit_q[7] , uut.\u_soc.u_periph.digit_q[6] ,
+       uut.\u_soc.u_periph.digit_q[5] , uut.\u_soc.u_periph.digit_q[4] ,
+       uut.\u_soc.u_periph.digit_q[3] , uut.\u_soc.u_periph.digit_q[2] ,
+       uut.\u_soc.u_periph.digit_q[1] , uut.\u_soc.u_periph.digit_q[0]
+   };
+
     initial begin
 
         // Registro de ondas
         $dumpfile("ondas_post_synth.vcd");
-        $dumpvars(0, clk, rst_n, i_Switch, o_LED, o_Segment_Bus);
+        $dumpvars(0, clk, rst_n, i_Switch, o_LED, o_Segment_Bus, x15_post, x1_post, display_post);
 
         // Inicialización
         clk = 0;
@@ -192,8 +199,7 @@ module tb_post_synth;
         $display(
             "WRONG: ciclo=%0d | medido=%0d | inicio_objetivo=%0d",
             tb_cycle,
-            x15_post,
-            x13_post
+            x15_post
         );
 
         repeat (5) @(negedge clk);
@@ -230,8 +236,7 @@ module tb_post_synth;
         $display(
             "CORRECT: ciclo=%0d | medido=%0d | inicio_objetivo=%0d",
             tb_cycle,
-            x15_post,
-            x13_post
+            x15_post
         );
 
         repeat (5) @(negedge clk);

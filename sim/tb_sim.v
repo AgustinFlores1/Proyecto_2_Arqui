@@ -64,11 +64,15 @@ module tb_sim;
             tb_cycle <= tb_cycle + 1;
     end
 
+    wire [31:0] x15     = uut.u_soc.u_core.u_rf.regs[15];   // tiempo de reacción en ciclos
+    wire [31:0] x1      = uut.u_soc.u_core.u_rf.regs[1];    // contador de rondas
+    wire [7:0]  display = uut.u_soc.u_periph.digit_q;       // valor BCD escrito en el display
+
     initial begin
 
         // Registro de ondas
         $dumpfile("ondas.vcd");
-        $dumpvars(0, clk, rst_n, i_Switch, o_LED, o_Segment_Bus);
+        $dumpvars(0, clk, rst_n, i_Switch, o_LED, o_Segment_Bus, x15, x1, display);
 
         // Inicialización
         clk = 0;
